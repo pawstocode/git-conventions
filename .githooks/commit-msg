@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+
+# ==========================================
+# Commit Message Validator
+# Based on .gitmessage
+# ==========================================
+
+COMMIT_MSG_FILE="$1"
+
+# Check whether commit message file exists.
+if [[ -z "$COMMIT_MSG_FILE" || ! -f "$COMMIT_MSG_FILE" ]]; then
+    echo "ERROR: Commit message file not found."
+    exit 1
+fi
+
+# Read Header (first line).
+HEADER=$(sed -n '1p' "$COMMIT_MSG_FILE" | tr -d '\r')
+
+# Allowed commit types (based on .gitmessage).
+ALLOWED_TYPES="feat|fix|docs|style|refactor|perf|test|chore"
+
+# Header format:
+# <type>(<scope>)!: <subject>
+#
+# Scope and ! are optional.
+PATTERN="^($ALLOWED_TYPES)(\([^()]+\))?(!)?: (.+)$"
+
+# ==========================================
+# 1. Validate Header format
+# ==========================================
+
+if [[ ! "$HEADER" =~ $PATTERN ]]; then
+    echo ""
+    echo "=========================================="
+    echo " ERROR: Invalid commit message format!"
+    echo "=========================================="
+    echo ""
+    echo "Expected format:"
+    echo "  <type>(<scope>)!: <subject>"
+    echo ""
+    echo "Examples:"
+    echo "  feat: 新增 FOUP 入庫功能"
+    echo "  fix(foup): 修正條碼掃描問題"
+    echo "  feat(scheduler)!: 新增派工優先權演算法"
+    echo ""
+    echo "Allowed types:"
+    echo "  feat, fix, docs, style,"
+    echo "  refactor, perf, test, chore"
+    echo ""
+    echo "Your commit message:"
+    echo "  $HEADER"
+    echo ""
+    exit 1
+fi
+
+# Extract Subject.
+SUBJECT="${BASH_REMATCH[4]}"
+
+# ==========================================
+# 2. Validate Subject
+# ==========================================
+
+# Subject must contain at least one non-whitespace character.
+if [[ ! "$SUBJECT" =~ [^[:space:]] ]]; then
+    echo "ERROR: Subject cannot be empty."
+    exit 1
+fi
+
+# Subject must not end with a period.
+if [[ "$SUBJECT" == *"." || "$SUBJECT" == *"。" ]]; then
+    echo ""
+    echo "ERROR: Subject must not end with a period."
+    echo ""
+    exit 1
+fi
+
+# ==========================================
+# 3. Validate Header length
+# ==========================================
+
+# Maximum Header length: 72 characters.
+# Bash character counting depends on the current locale.
+if (( ${#HEADER} > 72 )); then
+    echo ""
+    echo "ERROR: Header exceeds 72 characters."
+    echo "Recommended length: within 50 characters."
+    echo ""
+    echo "Current length: ${#HEADER}"
+    echo "Header: $HEADER"
+    echo ""
+    exit 1
+fi
+
+# ==========================================
+# 4. Validate Body separation
+# ==========================================
+
+# If Body or Footer exists, it must be separated
+# from Header by a blank line.
+SECOND_LINE=$(sed -n '2p' "$COMMIT_MSG_FILE" | tr -d '\r')
+
+if [[ -n "$SECOND_LINE" ]]; then
+    echo ""
+    echo "ERROR: A blank line is required"
+    echo "between Header and Body/Footer."
+    echo ""
+    echo "Correct format:"
+    echo "  feat: 新增 FOUP 入庫功能"
+    echo ""
+    echo "  新增儲位檢查及資料庫紀錄。"
+    echo ""
+    exit 1
+fi
+
+exit 0
